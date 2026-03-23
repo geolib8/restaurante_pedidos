@@ -40,6 +40,32 @@ export default function Home() {
     });
   };
 
+  const increase = (id: number) => {
+    setCart(prev =>
+      prev.map(item =>
+        item.id === id
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      )
+    );
+  };
+
+  const decrease = (id: number) => {
+    setCart(prev =>
+      prev
+        .map(item =>
+          item.id === id
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        )
+        .filter(item => item.quantity > 0)
+    );
+  };
+
+  const removeItem = (id: number) => {
+    setCart(prev => prev.filter(item => item.id !== id));
+  };
+
   const total = cart.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0
@@ -96,6 +122,14 @@ export default function Home() {
         </div>
 
         {/* CART */}
+        {cart.length > 0 && (
+          <button
+            onClick={() => setCart([])}
+            className="text-sm text-red-500 mb-2"
+          >
+            Vaciar carrito
+          </button>
+        )}
         <div className="mt-6 bg-white p-5 rounded-2xl shadow-md border border-gray-100">
           <h2 className="font-bold text-lg mb-3">🛒 Tu pedido</h2>
 
@@ -104,11 +138,47 @@ export default function Home() {
           )}
 
           {cart.map(item => (
-            <div key={item.id} className="flex justify-between mb-2">
-              <span className="text-gray-700">
-                {item.name} x{item.quantity}
-              </span>
-              <span className="font-semibold text-gray-900">
+            <div
+              key={item.id}
+              className="flex justify-between items-center mb-3 bg-gray-50 p-3 rounded-xl"
+            >
+              {/* LEFT */}
+              <div>
+                <p className="font-medium text-gray-800">{item.name}</p>
+                <p className="text-sm text-gray-500">
+                  ${item.price} c/u
+                </p>
+              </div>
+
+              {/* CONTROLS */}
+              <div className="flex items-center gap-2">
+                
+                <button
+                  onClick={() => decrease(item.id)}
+                  className="bg-red-400 w-8 h-8 rounded-lg"
+                >
+                  -
+                </button>
+
+                <span className="font-bold">{item.quantity}</span>
+
+                <button
+                  onClick={() => increase(item.id)}
+                  className="bg-green-500 text-white w-8 h-8 rounded-lg"
+                >
+                  +
+                </button>
+
+                <button
+                  onClick={() => removeItem(item.id)}
+                  className="ml-2 text-red-500 text-sm"
+                >
+                  🗑
+                </button>
+              </div>
+
+              {/* PRICE */}
+              <span className="font-bold text-gray-900">
                 ${item.price * item.quantity}
               </span>
             </div>
@@ -159,8 +229,13 @@ export default function Home() {
           )}
 
           <button
+            disabled={cart.length === 0}
             onClick={handleSubmit}
-            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-lg hover:bg-emerald-700 transition"
+            className={`w-full py-3 rounded-xl font-bold text-lg transition ${
+              cart.length === 0
+                ? "bg-gray-300"
+                : "bg-emerald-600 text-white hover:bg-emerald-700"
+            }`}
           >
             Hacer pedido 🚀
           </button>
