@@ -15,7 +15,7 @@ export async function POST(req) {
 ⏰ Hora: ${hora}
   `;
 
-  const token = "8711605440:AAHJrJWR379XyMZO_MdMs4W8Z22nBEErc9Us";
+  const token = "8711605440:AAHJrJWR379XyMZO_MdMs4W8Z22nBEErc9U";
   const chatId = "5009557425";
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;

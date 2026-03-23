@@ -2,7 +2,13 @@
 import { useState } from "react";
 
 export default function Home() {
-  const [order, setOrder] = useState({
+    const [order, setOrder] = useState<{
+    items: string[];
+    tipo: string;
+    direccion: string;
+    telefono: string;
+    hora: string;
+  }>({
     items: [],
     tipo: "Entrega",
     direccion: "",
@@ -10,7 +16,7 @@ export default function Home() {
     hora: ""
   });
 
-  const toggleItem = (item) => {
+  const toggleItem = (item: string) => {
     setOrder((prev) => ({
       ...prev,
       items: prev.items.includes(item)
