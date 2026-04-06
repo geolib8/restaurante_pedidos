@@ -10,11 +10,15 @@ type MenuItem = {
 type CartItem = MenuItem & { quantity: number };
 
 export default function Home() {
+  
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [image, setImage] = useState<File | null>(null);
+  const [fileKey, setFileKey] = useState(0);
 
   const [form, setForm] = useState({
     tipo: "Entrega",
+    metodoPago: "Transferencia",
     direccion: "",
     telefono: "",
     hora: ""
@@ -72,20 +76,60 @@ export default function Home() {
   );
 
   const handleSubmit = async () => {
-    await fetch("/api/menu", {
-      method: "POST",
-      body: JSON.stringify({
-        ...form,
-        total,
-        items: cart.map(
+    const cleanHora = form.tipo === "Recoger" ? form.hora : "";
+    const cleanDireccion = form.tipo === "Entrega" ? form.direccion : "";
+    const formData = new FormData();
+
+    formData.append("tipo", form.tipo);
+    formData.append("telefono", form.telefono);
+    formData.append("hora", cleanHora);
+    formData.append("direccion", cleanDireccion);
+    formData.append("total", String(total));
+    formData.append("metodoPago", form.metodoPago);
+
+    formData.append(
+      "items",
+      JSON.stringify(
+        cart.map(
           i => `${i.name} x${i.quantity} - $${i.price * i.quantity}`
         )
-      })
+      )
+    );
+
+    if (form.metodoPago === "Transferencia" && image) {
+      formData.append("image", image);
+    }
+    
+    if (form.metodoPago === "Transferencia" && !image) {
+      alert("Debes subir comprobante de pago");
+      return;
+    }
+    if (!form.telefono || form.telefono.length < 10) {
+      alert("Teléfono inválido");
+      return;
+    }
+
+    if (form.tipo === "Entrega" && !form.direccion) {
+      alert("Debes ingresar dirección");
+      return;
+    }
+
+    if (form.tipo === "Recoger" && !form.hora) {
+      alert("Debes ingresar hora de recogida");
+      return;
+    }
+    const finalImage =
+      form.metodoPago === "Transferencia" ? image : null;
+    if (finalImage) {
+      formData.append("image", finalImage);
+    }
+    await fetch("/api/menu", {
+      method: "POST",
+      body: formData
     });
 
     alert("Pedido enviado 🚀");
   };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
 
@@ -101,24 +145,40 @@ export default function Home() {
         <h2 className="text-xl font-bold mb-3 text-gray-800">Menú</h2>
 
         <div className="grid gap-4">
-          {menu.map(item => (
-            <div
-              key={item.id}
-              className="bg-white border border-orange-100 rounded-2xl shadow-sm p-4 flex justify-between items-center hover:shadow-md transition"
-            >
-              <div>
-                <h3 className="font-semibold text-lg text-gray-800">{item.name}</h3>
-                <p className="text-orange-600 font-bold text-lg">${item.price}</p>
-              </div>
+          {menu.map(item => {
+            const cartItem = cart.find(i => i.id === item.id); // ✅ HERE
 
-              <button
-                onClick={() => addItem(item)}
-                className="bg-orange-500 text-white w-10 h-10 rounded-full text-xl flex items-center justify-center hover:scale-110 transition"
+            return (
+              <div
+                key={item.id}
+                className="bg-white border border-orange-100 rounded-2xl shadow-sm p-4 flex justify-between items-center hover:shadow-md transition"
               >
-                +
-              </button>
-            </div>
-          ))}
+                <div>
+                  <h3 className="font-semibold text-lg text-gray-800">{item.name}</h3>
+                  <p className="text-orange-600 font-bold text-lg">${item.price}</p>
+                </div>
+                
+                {cartItem ? (
+                  <div className="flex items-center gap-2 bg-orange-500 text-white px-3 py-1 rounded-full">
+                    
+                    <button onClick={() => decrease(item.id)}>-</button>
+                    
+                    <span className="font-bold">{cartItem.quantity}</span>
+                    
+                    <button onClick={() => increase(item.id)}>+</button>
+                    
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => addItem(item)}
+                    className="bg-orange-500 text-white w-10 h-10 rounded-full text-xl"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* CART */}
@@ -193,20 +253,67 @@ export default function Home() {
         {/* FORM */}
         <div className="mt-6 bg-white p-5 rounded-2xl shadow-md border border-gray-100">
           <h2 className="font-bold text-lg mb-3">Datos</h2>
-
+          
           <select
-            className="w-full p-3 border rounded-xl mb-3 focus:ring-2 focus:ring-orange-400"
-            onChange={(e) => setForm({...form, tipo: e.target.value})}
+            className="w-full p-3 border rounded-xl mb-3"
+            onChange={(e) => {
+              const metodoPago = e.target.value;
+
+              setForm({
+                ...form,
+                metodoPago
+              });
+
+              // 🔥 CLEAR IMAGE if switching to efectivo
+              if (metodoPago === "Efectivo") {
+                setImage(null);
+                setFileKey(prev => prev + 1);
+              }
+            }}
+          >
+            <option>Transferencia</option>
+            <option>Efectivo</option>
+          </select>
+          {form.metodoPago === "Transferencia" && (
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl mb-3 text-sm text-blue-800">
+              💳 Para confirmar tu pedido:<br/>
+              1. Transfiere a la cuenta:<br/>
+              <b>**** 1234 (tu cuenta aquí)</b><br/>
+              2. Toma captura de pantalla<br/>
+              3. Súbela abajo 👇
+            </div>
+          )}
+
+          {form.metodoPago === "Efectivo" && (
+            <div className="bg-green-50 border border-green-200 p-3 rounded-xl mb-3 text-sm text-green-800">
+              💵 Pago en efectivo<br/>
+              Deja tu número y te contactaremos para confirmar el pedido.
+            </div>
+          )}
+          <select
+            className="w-full p-3 border rounded-xl mb-3"
+            onChange={(e) => {
+              const tipo = e.target.value;
+
+              setForm(prev => ({
+                ...prev,
+                tipo,
+                direccion: tipo === "Entrega" ? prev.direccion : "",
+                hora: tipo === "Recoger" ? prev.hora : ""
+              }));
+            }}
           >
             <option>Entrega</option>
             <option>Recoger</option>
           </select>
 
-          <input
-            placeholder="Dirección"
-            className="w-full p-3 border rounded-xl mb-3"
-            onChange={(e) => setForm({...form, direccion: e.target.value})}
-          />
+          {form.tipo === "Entrega" && (
+            <input
+              placeholder="Dirección"
+              className="w-full p-3 border rounded-xl mb-3"
+              onChange={(e) => setForm({...form, direccion: e.target.value})}
+            />
+          )}
 
           {/* PHONE VALIDATION */}
           <input
@@ -222,12 +329,23 @@ export default function Home() {
           {/* SHOW ONLY IF RECOGER */}
           {form.tipo === "Recoger" && (
             <input
-              placeholder="Hora (ej. 8:30pm)"
+              type="time"
               className="w-full p-3 border rounded-xl mb-3"
               onChange={(e) => setForm({...form, hora: e.target.value})}
             />
           )}
-
+          {form.metodoPago === "Transferencia" && (
+            <input
+              key={fileKey}
+              type="file"
+              accept="image/*"
+              className="w-full p-3 border rounded-xl mb-3"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) setImage(file);
+              }}
+            />
+          )}
           <button
             disabled={cart.length === 0}
             onClick={handleSubmit}
